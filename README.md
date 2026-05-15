@@ -86,3 +86,10 @@ point_in_world = node.transform_point(Point(x=0.0, y=0.0, z=0.1), "world", sourc
 - Align pose/transform axes toward points or vectors, with a secondary normal direction controlling roll.
 - Align cardinal pose/transform planes to target normals.
 - Compare quaternions as rotations, including the `q` / `-q` equivalence.
+- Change parents of tfs without affecting their global positions.
+
+## Colcon Pytest
+
+```bash
+colcon test --packages-select tf2_utils --event-handlers console_cohesion+   --pytest-args -rs -s
+```
