@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import rclpy
 from rclpy.clock import Clock
 from rclpy.duration import Duration
 from rclpy.node import Node
@@ -20,6 +21,7 @@ from geometry_msgs.msg import (
     Vector3Stamped,
 )
 from std_msgs.msg import Header
+from std_srvs.srv import Trigger
 
 from . import calculations as calc
 from . import conversions as conv
@@ -71,9 +73,10 @@ class TF2UtilsNode(Node):
         *,
         buffer_cache_time: Duration | None = None,
         spin_thread: bool = False,
+        clear_static_service_name: str | None = "/clear_static",
         **kwargs: Any,
     ) -> None:
-        """Create a node with TF2 lookup and broadcast utilities ready to use."""
+        """Create a node with TF2 lookup, broadcast utilities, and optional services ready to use."""
         super().__init__(node_name, **kwargs)
         try:
             self.tf_buffer = Buffer(cache_time=buffer_cache_time, node=self)
@@ -82,11 +85,38 @@ class TF2UtilsNode(Node):
         self.buffer = self.tf_buffer
         self.tf_listener = TransformListener(
             self.tf_buffer, self, spin_thread=spin_thread
-        )  # TODO check what the spin does
+        )  # TODO check what the spin thread does
         self.tf_broadcaster = TransformBroadcaster(self)
         self.broadcaster = self.tf_broadcaster
         self.static_tf_broadcaster = StaticTransformBroadcaster(self)
         self.static_broadcaster = self.static_tf_broadcaster
+        self.clear_static_service = (
+            self.create_service(Trigger, clear_static_service_name, self._handle_clear_static)
+            if clear_static_service_name
+            else None
+        )
+
+    def clear_static_transforms(self) -> None:
+        """Clear static transforms broadcast by this node and reset this node's TF buffer."""
+        publisher = getattr(self.static_tf_broadcaster, "pub_tf", None)
+        if publisher is not None:
+            self.destroy_publisher(publisher)
+        self.static_tf_broadcaster = StaticTransformBroadcaster(self)
+        self.static_broadcaster = self.static_tf_broadcaster
+        clear = getattr(self.tf_buffer, "clear", None)
+        if clear is not None:
+            clear()
+
+    def _handle_clear_static(self, request: Trigger.Request, response: Trigger.Response) -> Trigger.Response:
+        """Handle the ``/clear_static`` service request."""
+        del request
+        self.clear_static_transforms()
+        response.success = True
+        response.message = (
+            "Reset this node's static transform broadcaster and local TF buffer. "
+            "Other nodes may keep static transforms they already received."
+        )
+        return response
 
     def lookup_transform(
         self,
@@ -320,3 +350,17 @@ class TF2UtilsNode(Node):
         )
         self.static_tf_broadcaster.sendTransform(transform_stamped)
         return transform_stamped
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = TF2UtilsNode()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

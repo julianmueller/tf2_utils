@@ -83,18 +83,13 @@ def yaw_90_quaternion():
 
 
 @pytest.fixture
-def identity_quaternion():
-    return Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-
-
-@pytest.fixture
 def pose_a(yaw_90_quaternion):
     return Pose(position=Point(x=1.0, y=0.0, z=0.0), orientation=yaw_90_quaternion)
 
 
 @pytest.fixture
-def pose_b(identity_quaternion):
-    return Pose(position=Point(x=1.0, y=0.0, z=0.0), orientation=identity_quaternion)
+def pose_b():
+    return Pose(position=Point(x=1.0, y=0.0, z=0.0), orientation=Quaternion())
 
 
 @pytest.fixture
@@ -103,8 +98,8 @@ def transform_a(yaw_90_quaternion):
 
 
 @pytest.fixture
-def transform_b(identity_quaternion):
-    return Transform(translation=Vector3(x=1.0, y=0.0, z=0.0), rotation=identity_quaternion)
+def transform_b():
+    return Transform(translation=Vector3(x=1.0, y=0.0, z=0.0), rotation=Quaternion())
 
 
 @pytest.fixture
@@ -203,13 +198,13 @@ def test_pose_and_transform_composition_helpers(
     assert isinstance(calc.chain_transforms(), Transform)
 
 
-def test_stamped_transform_chaining_validates_connected_frames(identity_quaternion):
+def test_stamped_transform_chaining_validates_connected_frames():
     world_to_base = TransformStamped(
         header=Header(frame_id="world"),
         child_frame_id="base",
         transform=Transform(
             translation=Vector3(x=1.0, y=0.0, z=0.0),
-            rotation=identity_quaternion,
+            rotation=Quaternion(),
         ),
     )
     base_to_tool = TransformStamped(
@@ -217,7 +212,7 @@ def test_stamped_transform_chaining_validates_connected_frames(identity_quaterni
         child_frame_id="tool",
         transform=Transform(
             translation=Vector3(x=0.0, y=2.0, z=0.0),
-            rotation=identity_quaternion,
+            rotation=Quaternion(),
         ),
     )
 
@@ -278,7 +273,7 @@ def test_inverse_helpers_for_matrices_poses_transforms_and_quaternions(pose_a, t
         calc.invert_matrix(np.eye(3))
 
 
-def test_interpolation_helpers(identity_quaternion):
+def test_interpolation_helpers():
     point_a = Point(x=0.0, y=0.0, z=0.0)
     point_b = Point(x=10.0, y=20.0, z=30.0)
     vector_a = Vector3(x=0.0, y=0.0, z=0.0)
@@ -287,24 +282,24 @@ def test_interpolation_helpers(identity_quaternion):
 
     lerped_point = calc.lerp_point(point_a, point_b, 0.25)
     lerped_vector = calc.lerp_vector3(vector_a, vector_b, 0.25)
-    lerped_quat = calc.lerp_quat(identity_quaternion, quat_b, 0.5)
-    slerped_quat = calc.slerp_quat(identity_quaternion, quat_b, 0.5)
+    lerped_quat = calc.lerp_quat(Quaternion(), quat_b, 0.5)
+    slerped_quat = calc.slerp_quat(Quaternion(), quat_b, 0.5)
     lerped_pose = calc.lerp_pose(
-        Pose(position=point_a, orientation=identity_quaternion),
+        Pose(position=point_a, orientation=Quaternion()),
         Pose(position=Point(x=2.0, y=4.0, z=6.0), orientation=quat_b),
         0.5,
         slerp=True,
     )
     lerped_transform = calc.lerp_transform(
-        Transform(translation=vector_a, rotation=identity_quaternion),
-        Transform(translation=Vector3(x=2.0, y=4.0, z=6.0), rotation=identity_quaternion),
+        Transform(translation=vector_a, rotation=Quaternion()),
+        Transform(translation=Vector3(x=2.0, y=4.0, z=6.0), rotation=Quaternion()),
         0.5,
     )
 
     assert calc.lerp_float(2.0, 10.0, 0.25) == pytest.approx(4.0)
     assert [lerped_point.x, lerped_point.y, lerped_point.z] == pytest.approx([2.5, 5.0, 7.5])
     assert [lerped_vector.x, lerped_vector.y, lerped_vector.z] == pytest.approx([2.5, 5.0, 7.5])
-    assert calc.angular_distance_quat(identity_quaternion, quat_b) == pytest.approx(math.pi)
+    assert calc.angular_distance_quat(Quaternion(), quat_b) == pytest.approx(math.pi)
     assert [lerped_quat.x, lerped_quat.y, lerped_quat.z, lerped_quat.w] == pytest.approx(
         [
             0.0,

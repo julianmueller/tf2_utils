@@ -17,6 +17,8 @@ from rclpy.duration import Duration
 from rclpy.time import Time as RclpyTime
 from std_msgs.msg import Header
 
+from std_srvs.srv import Trigger
+
 from tf2_utils.node import TF2UtilsNode
 
 
@@ -32,6 +34,7 @@ class _Buffer:
         self.transform = transform
         self.lookup_calls = []
         self.can_calls = []
+        self.clear_calls = 0
 
     def lookup_transform(self, target_frame, source_frame, stamp, timeout=None):
         self.lookup_calls.append((target_frame, source_frame, stamp, timeout))
@@ -40,6 +43,9 @@ class _Buffer:
     def can_transform(self, target_frame, source_frame, stamp, timeout=None):
         self.can_calls.append((target_frame, source_frame, stamp, timeout))
         return True
+
+    def clear(self):
+        self.clear_calls += 1
 
 
 class _Broadcaster:
@@ -72,6 +78,7 @@ def node_model(monkeypatch, target_transform_model):
     node.broadcaster = node.tf_broadcaster
     node.static_tf_broadcaster = _Broadcaster()
     node.static_broadcaster = node.static_tf_broadcaster
+    node.destroyed_publishers = []
     node.lookup_transform = MethodType(TF2UtilsNode.lookup_transform, node)
     node.can_transform = MethodType(TF2UtilsNode.can_transform, node)
     node.lookup_pose = MethodType(TF2UtilsNode.lookup_pose, node)
@@ -80,7 +87,10 @@ def node_model(monkeypatch, target_transform_model):
     node.transform_vector3 = MethodType(TF2UtilsNode.transform_vector3, node)
     node.broadcast_transform = MethodType(TF2UtilsNode.broadcast_transform, node)
     node.broadcast_static_transform = MethodType(TF2UtilsNode.broadcast_static_transform, node)
+    node.clear_static_transforms = MethodType(TF2UtilsNode.clear_static_transforms, node)
+    node._handle_clear_static = MethodType(TF2UtilsNode._handle_clear_static, node)
     node._make_transform_stamped = MethodType(TF2UtilsNode._make_transform_stamped, node)
+    monkeypatch.setattr(node, 'destroy_publisher', node.destroyed_publishers.append, raising=False)
     monkeypatch.setattr(node, 'get_clock', lambda: _Clock(), raising=False)
     return node
 
@@ -280,3 +290,42 @@ def test_broadcast_methods_stamp_and_send_transforms(
             broadcast_transform_model,
             parent_frame='world',
         )
+
+
+def test_clear_static_transforms_resets_static_broadcaster_and_buffer(node_model, monkeypatch):
+    old_publisher = object()
+    node_model.static_tf_broadcaster.pub_tf = old_publisher
+
+    class ReplacementBroadcaster(_Broadcaster):
+
+        def __init__(self, *_args, **_kwargs):
+            super().__init__()
+
+    monkeypatch.setattr('tf2_utils.node.StaticTransformBroadcaster', ReplacementBroadcaster)
+
+    TF2UtilsNode.clear_static_transforms(node_model)
+
+    assert node_model.destroyed_publishers == [old_publisher]
+    assert isinstance(node_model.static_tf_broadcaster, ReplacementBroadcaster)
+    assert node_model.static_broadcaster is node_model.static_tf_broadcaster
+    assert node_model.tf_buffer.clear_calls == 1
+
+
+def test_clear_static_service_callback_reports_limitations(node_model, monkeypatch):
+    class ReplacementBroadcaster(_Broadcaster):
+
+        def __init__(self, *_args, **_kwargs):
+            super().__init__()
+
+    monkeypatch.setattr('tf2_utils.node.StaticTransformBroadcaster', ReplacementBroadcaster)
+
+    response = TF2UtilsNode._handle_clear_static(
+        node_model,
+        Trigger.Request(),
+        Trigger.Response(),
+    )
+
+    assert response.success
+    assert "Other nodes may keep static transforms" in response.message
+    assert isinstance(node_model.static_tf_broadcaster, ReplacementBroadcaster)
+    assert node_model.tf_buffer.clear_calls == 1

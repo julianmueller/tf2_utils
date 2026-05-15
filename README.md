@@ -2,6 +2,16 @@
 
 Small ROS 2 helpers for `geometry_msgs` transforms, poses, quaternions, NumPy matrices, and common transform math.
 
+## Examples
+
+Open `rviz2`, add a tf display, and run the following examples:
+
+```bash
+ros2 run tf2_utils examples alignment
+ros2 run tf2_utils examples reparenting
+ros2 run tf2_utils examples tree
+```
+
 ## Usage
 
 Add this package to your package's `package.xml`:
@@ -58,7 +68,10 @@ point_in_world = node.transform_point(Point(x=0.0, y=0.0, z=0.1), "world", sourc
 - `tf2_utils.node`: a `TF2UtilsNode` with a TF2 buffer, listener, dynamic/static broadcasters, and lookup/transform/broadcast helpers.
 - `tf2_utils.conversions`: constructors, string/list conversions, NumPy matrices, Euler/quaternion helpers, stamped poses, and stamped transforms.
 - `tf2_utils.calculations`: transform composition, chaining, inversion, distances, interpolation, normalization, and point/vector transforms.
+- `tf2_utils.alignment`: orientation helpers for aiming transform axes at points/vectors and aligning cardinal planes to normals.
 - `tf2_utils.comparisons`: tolerant equality checks for headers, geometry messages, and stamped transforms.
+- `tf2_utils.tree`: convenience functions to create a tf tree from a list structure
+- `tf2_utils.reparenting`: switch parents of a tf without affecting its global position
 
 ## Highlights
 
@@ -70,4 +83,6 @@ point_in_world = node.transform_point(Point(x=0.0, y=0.0, z=0.1), "world", sourc
 - Chain `Transform` or connected `TransformStamped` messages.
 - Invert matrices, quaternions, poses, transforms, and stamped transforms.
 - Interpolate positions, orientations, poses, and transforms.
+- Align pose/transform axes toward points or vectors, with a secondary normal direction controlling roll.
+- Align cardinal pose/transform planes to target normals.
 - Compare quaternions as rotations, including the `q` / `-q` equivalence.

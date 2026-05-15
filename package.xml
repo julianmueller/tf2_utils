@@ -15,6 +15,7 @@
   <depend>python3-scipy</depend>
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>tf2_ros</depend>
 
   <test_depend>ament_copyright</test_depend>

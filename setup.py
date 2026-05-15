@@ -38,6 +38,9 @@ setup(
         ],
     },
     entry_points={
-        "console_scripts": ["node = tf2_utils.node:main"],
+        "console_scripts": [
+            "node = tf2_utils.node:main",
+            "examples = tf2_utils.examples:main",
+        ],
     },
 )

@@ -7,7 +7,6 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
 
-from std_msgs.msg import Header
 from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion, Transform, TransformStamped, Vector3
 
 from . import conversions as conv
@@ -131,6 +130,7 @@ def chain_transform_stamped(*transforms: TransformStamped) -> TransformStamped:
     for transform in transforms[1:]:
         result = mult_transform_stamped(result, transform)
     return result
+
 
 
 def invert_matrix(matrix: Sequence[Sequence[float]] | np.ndarray) -> np.ndarray:
