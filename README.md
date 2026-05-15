@@ -1,20 +1,73 @@
-# Module Template
+# TF2 Utils
 
-This is a template for a module repository. A Module is considered to follow these rules:
+Small ROS 2 helpers for `geometry_msgs` transforms, poses, quaternions, NumPy matrices, and common transform math.
 
-- This repo is a ros2 package. [See below](#setup-of-the-ros2-package)
-- It mainly contains scripts, meshes, launch files, configs, URDF/SRDF xacro macros, that are then used within an applications.
-- This repository will be addedd to applications as a submodule.
-- Launch files for testing the functionality of this module are welcome.
-- Also documentation, that is inherent to this module can be included in this README and in the doc folder, like specific coordinate frames etc.
+## Usage
 
-You can delete these infos if you dont need them anymore. You can always revisit them in the [Wiki](https://gitlab.lrz.de/groups/iwb-tgmr-ros2/-/wikis/home).
+Add this package to your package's `package.xml`:
 
-## Setup of the ROS2 Package
+```xml
+<depend>tf2_utils</depend>
+```
 
-First you need to create the ros2 workspace with the source folder. Then you create the ros2 package. Then you clone the newly created repository (from the module-template) into this package. A tutorial can be found here: [Create a new ROS2 pkg as a repo](https://gitlab.lrz.de/groups/iwb-tgmr-ros2/-/wikis/Creating-a-new-Repository#new-repository-with-ros2-package). Then you push the changes to the module repository.
+Use top-level imports for concise scripts:
 
-## References
+```python
+import tf2_utils
 
-- [TGMR ROS2 Wiki](https://gitlab.lrz.de/groups/iwb-tgmr-ros2/-/wikis/home).
-- [ROS2 Jazzy Wiki: Creating a package](https://docs.ros.org/en/foxy/Tutorials/Beginner-Client-Libraries/Creating-Your-First-ROS2-Package.html)
+world_to_base = Transform(0.4, 0.0, 0.2)
+base_to_tool = Transform(
+    transform=Vector3(0.0, 0.0, 0.1),
+    rotation=tf2_utils.euler_to_quat(0.0, 0.0, 0.5),
+)
+world_to_tool = tf2_utils.chain_transforms(world_to_base, base_to_tool)
+tool_to_world = tf2_utils.invert_transform(world_to_tool)
+matrix = tf2_utils.transform_to_np(world_to_tool)
+```
+
+Use module aliases when grouping matters:
+
+```python
+from tf2_utils import calc, comp, conv
+
+transform = conv.list_to_transform([0.2, 0.0, 0.1, 0.0, 0.0, 0.0, 1.0])
+inverse = calc.invert_transform(transform)
+same = comp.is_equal_transform(calc.mult_transforms(transform, inverse), Transform())
+```
+
+Use `TF2UtilsNode` when helpers need live TF2 lookup or broadcasting:
+
+```python
+from geometry_msgs.msg import Point
+from tf2_utils import TF2UtilsNode, list_to_transform
+
+node = TF2UtilsNode("example_tf_node")
+
+node.broadcast_static_transform(
+    list_to_transform([0.4, 0.0, 0.2, 0.0, 0.0, 0.0, 1.0]),
+    parent_frame="world",
+    child_frame="base",
+)
+
+tool_pose = node.lookup_pose("world", "tool0", timeout=1.0)
+point_in_world = node.transform_point(Point(x=0.0, y=0.0, z=0.1), "world", source_frame="tool0")
+```
+
+## Module Split
+
+- `tf2_utils.node`: a `TF2UtilsNode` with a TF2 buffer, listener, dynamic/static broadcasters, and lookup/transform/broadcast helpers.
+- `tf2_utils.conversions`: constructors, string/list conversions, NumPy matrices, Euler/quaternion helpers, stamped poses, and stamped transforms.
+- `tf2_utils.calculations`: transform composition, chaining, inversion, distances, interpolation, normalization, and point/vector transforms.
+- `tf2_utils.comparisons`: tolerant equality checks for headers, geometry messages, and stamped transforms.
+
+## Highlights
+
+- Look up live TF2 transforms and convert frame transforms to `PoseStamped`.
+- Transform stamped or unstamped poses, points, and vectors through a TF2 buffer.
+- Broadcast dynamic or static transforms from `Transform`, `TransformStamped`, `Pose`, or `PoseStamped` inputs.
+- Convert `Point`, `Vector3`, `Quaternion`, `Pose`, `Transform`, `PoseStamped`, and `TransformStamped` to and from NumPy-friendly forms.
+- Convert between `Pose` and `Transform`, including stamped variants.
+- Chain `Transform` or connected `TransformStamped` messages.
+- Invert matrices, quaternions, poses, transforms, and stamped transforms.
+- Interpolate positions, orientations, poses, and transforms.
+- Compare quaternions as rotations, including the `q` / `-q` equivalence.
