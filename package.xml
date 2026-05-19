@@ -3,7 +3,7 @@
 <package format="3">
     <name>tf2_utils</name>
     <version>0.0.1</version>
-    <description>Reusable ROS 2 helpers for transforms, NumPy conversion, and transform math.</description>
+    <description>collection of utility functions for tf2 in ros2</description>
     <maintainer email="julian.mueller@iwb.tum.de">jmueller</maintainer>
     <license>LGPL-3.0-or-later</license>
 
